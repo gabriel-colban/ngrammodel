@@ -31,3 +31,7 @@ Initially i set the weights as such:
 5gram - 0.4
 
 But this resultet in incoherent text, i suspect this is due to the size of the corpus. Lower N models have so many ngrams to choose between that they have a bigger probability of being chosen despite the lower weights.
+
+### Notes
+
+Ive found that starting text prediction with few words, will result in the lower n models producing iincoherent text until it matches up to something the higher n models have seen before. Might be a problem with the corpus, but probably also just a limitation of nmodel text prediction. I assume as i increase complexity of generation this will improve.
