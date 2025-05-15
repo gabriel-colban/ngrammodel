@@ -23,6 +23,24 @@ for n in range(1,6):
         print(f"{n} gram model loaded")
         ngram_models[n] = model
 
+def custom_tokenize(text):
+    text = text.lower()
+    # Split common contractions
+    text = re.sub(r"\b(can)'t\b", r"\1 n't", text)
+    text = re.sub(r"\b(won)'t\b", r"\1 n't", text)
+    text = re.sub(r"\b(n)'t\b", r" n't", text)
+    text = re.sub(r"(\w+)'ll", r"\1 'll", text)
+    text = re.sub(r"(\w+)'ve", r"\1 've", text)
+    text = re.sub(r"(\w+)'re", r"\1 're", text)
+    text = re.sub(r"(\w+)'d", r"\1 'd", text)
+    text = re.sub(r"(\w+)'s", r"\1 's", text)
+    text = re.sub(r"(\w+)'m", r"\1 'm", text)
+
+    # Then remove other special characters
+    text = re.sub(r"[^a-zA-Z0-9'\s]", " ", text)
+
+    return text.split()
+
 def training_data(df, test = False):
     # df contains title, date, etc. which is not needed for the ngram model
     # Text also has the location and source, which we dont want for our counter.
@@ -41,13 +59,12 @@ def training(df, save=False, n=2):
     # By running the counter on each text seperately we dont muck up the data.
     for entry in df:
         text = entry
-        clean_text = re.sub(r"[^a-zA-Z0-9]", " ", text)
-        text_list = clean_text.lower().split()
+        text_list = custom_tokenize(text)
 
         window = []
         for word in text_list:
             window.append(word)
-            print(window)
+
             if len(window) >= n+1:
                 window.pop(0)
                 key = tuple(window)
@@ -99,15 +116,15 @@ def interpolated_next_word(text, n):
     candidates = {}
 
     weights = {
-        2: 0.025,
-        3: 0.05,
-        4: 0.225,
+        2: 0.001,
+        3: 0.029,
+        4: 0.27,
         5: 0.7,
     }
 
     for ngram in range(1, n+1):
         context = tuple(words[-(ngram - 1):])  # last n-1 words
-        print(context)
+
         model = ngram_models.get(ngram, None)
 
         if model is None:
@@ -120,7 +137,6 @@ def interpolated_next_word(text, n):
         candidates.update(new_candidates)
 
     return weighted_choice(candidates)
-
 
 def predict_text(text = "", n=2, length = 30):
     words = text.split()
@@ -143,9 +159,9 @@ def train_model(n=5):
 
     df = training_data(df)
     ngram = training(df, save=True, n=n)
-
+    print(f"{n} gram model trained")
 
 while True:
-    text = input("Enter text: ")
-    result = predict_text(text, 5, 15)
-    print("Model predicted: ", result)
+    text = input("Enter a text: ")
+    prediction = predict_text(text)
+    print("Model predicted: ", prediction)
