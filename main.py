@@ -3,13 +3,19 @@ from collections import Counter
 import pandas as pd
 import re
 import random
+import spacy
+import os
+
+
+
+
 
 
 
 # Initialising ngram models
-def load_model(n):
+def load_model(pickle_name):
     try:
-        with open(str(n)+'gram_counter.pickle', 'rb') as handle:
+        with open(pickle_name, 'rb') as handle:
             return pickle.load(handle)
     except FileNotFoundError:
         print(f"{n} gram model not found")
@@ -17,29 +23,33 @@ def load_model(n):
 
 ngram_models = {}
 
-for n in range(1,6):
-    model = load_model(n)
-    if model:
-        print(f"{n} gram model loaded")
-        ngram_models[n] = model
+pattern = re.compile(r'(\d+)gram_counter(?:_spacy)?\.pickle')
+
+folder_path = "./archive/models"
+
+for filename in os.listdir(folder_path):
+    match = pattern.match(filename)
+    if match:
+        n = int(match.group(1))
+        model = load_model(os.path.join(folder_path, filename))
+        if model:
+            print(f"{filename} loaded as {n} gram model")
+            ngram_models[n] = model
+
+nlp = spacy.load("en_core_web_sm")
+
 
 def custom_tokenize(text):
-    text = text.lower()
+
     # Split common contractions
-    text = re.sub(r"\b(can)'t\b", r"\1 n't", text)
-    text = re.sub(r"\b(won)'t\b", r"\1 n't", text)
-    text = re.sub(r"\b(n)'t\b", r" n't", text)
-    text = re.sub(r"(\w+)'ll", r"\1 'll", text)
-    text = re.sub(r"(\w+)'ve", r"\1 've", text)
-    text = re.sub(r"(\w+)'re", r"\1 're", text)
-    text = re.sub(r"(\w+)'d", r"\1 'd", text)
-    text = re.sub(r"(\w+)'s", r"\1 's", text)
-    text = re.sub(r"(\w+)'m", r"\1 'm", text)
+    print(text)
+    doc = nlp(text)
+    print(doc)
+    tokens = [token.text for token in doc]
 
-    # Then remove other special characters
-    text = re.sub(r"[^a-zA-Z0-9'\s]", " ", text)
+    return tokens
 
-    return text.split()
+
 
 def training_data(df, test = False):
     # df contains title, date, etc. which is not needed for the ngram model
@@ -52,7 +62,7 @@ def training_data(df, test = False):
 
     return df
 
-def training(df, save=False, n=2):
+def training(df, save=False, n=2, custom_id = ""):
     ngram_counter = Counter()
 
     # We dont append each text into one big file, because the last word in a text would be irrelevant to the next one
@@ -74,7 +84,7 @@ def training(df, save=False, n=2):
                 ngram_counter[key] += 1
 
     if save:
-        with open(str(n)+'gram_counter.pickle', 'wb') as handle:
+        with open(folder_path + str(n)+'gram_counter' + custom_id + '.pickle', 'wb') as handle:
             pickle.dump(ngram_counter, handle)
 
     return ngram_counter
@@ -150,7 +160,7 @@ def predict_text(text = "", n=2, length = 30):
     else:
         return text
 
-def train_model(n=5):
+def train_model(n=5, custom_id = ""):
     # Exploration
     df = pd.read_csv("archive/True.csv")
 
@@ -158,8 +168,11 @@ def train_model(n=5):
     print(df["text"].head())
 
     df = training_data(df)
-    ngram = training(df, save=True, n=n)
+    ngram = training(df, save=True, n=n, custom_id = custom_id)
     print(f"{n} gram model trained")
+
+for n in range(1,3):
+    train_model(n, "_spacy")
 
 while True:
     text = input("Enter a text: ")
